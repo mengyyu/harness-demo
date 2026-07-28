@@ -1,0 +1,31 @@
+name: summary_generator
+version: "1.0.0"
+description: 基于客户账户分析和私募持仓报告生成综合总结
+intents:
+  - generate_summary
+  - summarize_account
+required_mcp_tools:
+  - get_account_analysis
+  - get_holding_report
+input_schema:
+  type: object
+  properties:
+    customer_id:
+      type: string
+    account_data:
+      type: object
+    holding_data:
+      type: object
+output_schema:
+  type: object
+  properties:
+    account_overview:
+      type: string
+    holding_analysis:
+      type: string
+    risk_alerts:
+      type: array
+    suggestions:
+      type: array
+timeout: 300
+author: Harness Demo

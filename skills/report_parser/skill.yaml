@@ -1,0 +1,31 @@
+name: report_parser
+version: "1.0.0"
+description: 智能解析基金诊断报告，提取结构化数据
+intents:
+  - parse_report
+  - extract_report_data
+required_mcp_tools:
+  - parse_document
+input_schema:
+  type: object
+  properties:
+    file_path:
+      type: string
+      description: 报告文件路径
+output_schema:
+  type: object
+  properties:
+    fund_name:
+      type: string
+    fund_code:
+      type: string
+    diagnosis_date:
+      type: string
+    performance_metrics:
+      type: object
+    risk_assessment:
+      type: object
+    holdings_analysis:
+      type: object
+timeout: 300
+author: Harness Demo
