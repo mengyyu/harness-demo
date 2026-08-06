@@ -284,36 +284,44 @@ class MCPRegistry:
 
     # ── Tool Execution ────────────────────────────────────
 
-    async def call_tool(
-        self,
-        tool_name_or_server: str,
-        arguments_or_tool: Any = None,
-        **kwargs,
-    ) -> Any:
+    async def call_tool(self, *args, **kwargs) -> Any:
         """Call a tool by name across all servers.
 
         Supports BOTH signatures for backward compatibility:
 
         New API: call_tool(tool_name, arguments=dict)
-        Old API: call_tool(server_name, tool_name, **kwargs)
+        Old API: call_tool(server_name, tool_name, arguments_dict)
 
-        Args:
-            tool_name_or_server: Tool name (new) or server name (old).
-            arguments_or_tool: Arguments dict (new) or tool name (old).
-            **kwargs: Tool parameters (old API).
-
-        Returns:
-            Tool execution result.
+        Args are auto-detected by position and type.
         """
-        # Detect calling convention
-        if isinstance(arguments_or_tool, str):
-            # Old API: call_tool(server_name, tool_name, **kwargs)
-            tool_name = arguments_or_tool
+        # Detect calling convention from positional args (excluding self)
+        if len(args) == 0:
+            raise ValueError("call_tool() requires at least a tool name")
+
+        first = args[0]
+        second = args[1] if len(args) > 1 else None
+        third = args[2] if len(args) > 2 else None
+
+        if isinstance(second, str) and not kwargs:
+            # Old API: call_tool(server, tool, arguments_dict)
+            tool_name = second
+            arguments = third if isinstance(third, dict) else {}
+        elif isinstance(second, dict) and not kwargs:
+            # New API: call_tool(tool_name, arguments=dict) with positional dict
+            tool_name = first
+            arguments = second
+        elif kwargs and not second:
+            # New API: call_tool(tool_name, **kwargs) → args is keyword
+            tool_name = first
+            arguments = kwargs
+        elif isinstance(second, str) and kwargs:
+            # Old API with **kwargs: call_tool(server, tool, **kwargs)
+            tool_name = second
             arguments = kwargs
         else:
             # New API: call_tool(tool_name, arguments=dict)
-            tool_name = tool_name_or_server
-            arguments = arguments_or_tool or {}
+            tool_name = first
+            arguments = second if isinstance(second, dict) else (third if isinstance(third, dict) else kwargs or {})
 
         tool = self._tools.get(tool_name)
         if not tool:
