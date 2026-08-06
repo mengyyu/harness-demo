@@ -3,7 +3,7 @@
 # ══════════════════════════════════════════════════════════
 
 # ── Core Agent Framework ──────────────────────────────────
-deepagents>=0.1.0
+# deepagents>=0.1.0    # NOT on PyPI yet — uses fallback in harness/agent/factory.py
 langgraph>=0.2.0
 langchain>=0.3.0
 langchain-core>=0.3.0
@@ -11,7 +11,8 @@ langchain-openai>=0.2.0
 langchain-anthropic>=0.3.0
 
 # ── MCP (Model Context Protocol) ──────────────────────────
-mcp>=1.0.0
+# mcp>=1.0.0    # Install manually: pip install git+https://github.com/modelcontextprotocol/python-sdk.git
+# MCP is optional — demo mode uses local tools via harness/mcp/registry.py
 
 # ── Memory ────────────────────────────────────────────────
 mem0ai>=0.1.0

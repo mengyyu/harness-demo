@@ -1,0 +1,35 @@
+# Railway Deployment Configuration
+# Docs: https://docs.railway.com/reference/config-as-code
+
+[build]
+  builder = "DOCKERFILE"
+  dockerfilePath = "./Dockerfile"
+
+[deploy]
+  numReplicas = 1
+  startCommand = "python run_demo.py --api"
+  healthcheckPath = "/health"
+  healthcheckTimeout = 60
+  restartPolicyType = "ON_FAILURE"
+  restartPolicyMaxRetries = 3
+
+[service]
+  name = "harness-api"
+
+# ═══════════════════════════════════════════════
+# Environment Variables
+# ═══════════════════════════════════════════════
+
+[variables]
+  DATABASE_URL = "sqlite:///./data/harness.db"
+  LLM_PROVIDER = "mock"
+  LLM_MODEL = "mock"
+  LLM_API_KEY = ""
+  LANGFUSE_ENABLED = "false"
+  LANGFUSE_PUBLIC_KEY = ""
+  LANGFUSE_SECRET_KEY = ""
+  LANGFUSE_HOST = ""
+  MEM0_ENABLED = "false"
+  SKILLS_DIR = "skills"
+  MCP_SERVERS_DIR = "mcp_servers"
+  LOG_LEVEL = "INFO"
