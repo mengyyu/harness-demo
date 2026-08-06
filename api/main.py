@@ -78,6 +78,13 @@ def create_app() -> FastAPI:
             "health": "/health",
         }
 
+    # ── Startup: Initialize Harness framework ──
+    @app.on_event("startup")
+    async def startup_event():
+        """Initialize the Harness framework on app startup."""
+        from run_demo import init_harness
+        init_harness()
+
     return app
 
 
