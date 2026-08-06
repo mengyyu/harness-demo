@@ -1,0 +1,48 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+      - "8501:8501"
+    environment:
+      - DATABASE_URL=sqlite:///./data/harness.db
+      - LLM_PROVIDER=anthropic
+      - LANGFUSE_ENABLED=false
+      - LANGFUSE_HOST=http://langfuse-server:3000
+      - MEM0_ENABLED=false
+    volumes:
+      - ./data:/app/data
+      - ./skills:/app/skills
+      - ./config:/app/config
+      - ./logs:/app/logs
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: harness
+      POSTGRES_PASSWORD: harness
+      POSTGRES_DB: harness
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U harness"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  chroma:
+    image: chromadb/chroma:latest
+    ports:
+      - "8001:8000"
+    volumes:
+      - chroma_data:/chroma/chroma
+
+volumes:
+  pgdata:
+  chroma_data:

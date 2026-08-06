@@ -1,6 +1,7 @@
-"""
-Harness Framework — Agent 编排框架
-支持 Agent Loop、Skill 调度、MCP 工具调用、记忆体系
+"""Harness Framework — Agent Orchestration Platform.
+
+Built on: DeepAgents + LangGraph + LangChain + LangFuse + Mem0
+Supports Agent Loop, Skill scheduling, MCP tool calling, memory system.
 """
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"

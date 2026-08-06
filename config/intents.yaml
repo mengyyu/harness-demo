@@ -1,0 +1,86 @@
+# Intent Library Configuration
+# Defines the intent routing rules for the agent
+
+intents:
+  - name: parse_report
+    display_name: "解析基金诊断报告"
+    description: "智能解析基金诊断报告，提取结构化数据"
+    keywords:
+      - 解析
+      - 报告
+      - 基金
+      - 诊断
+      - 分析这份
+      - PDF
+      - 文档
+      - 提取
+    negative_keywords:
+      - 总结
+    skill_name: report_parser
+    priority: 10
+    enabled: true
+    examples:
+      - "帮我解析这份基金诊断报告"
+      - "分析这个PDF文档"
+      - "提取报告里的数据"
+
+  - name: generate_summary
+    display_name: "生成客户总结"
+    description: "基于客户账户分析和私募持仓报告生成综合总结"
+    keywords:
+      - 总结
+      - 汇总
+      - 账户
+      - 持仓
+      - 私募
+      - 客户
+      - 概况
+      - 一键生成
+    negative_keywords:
+      - 解析
+      - 报告
+    skill_name: summary_generator
+    priority: 10
+    enabled: true
+    examples:
+      - "帮我生成王总的账户总结"
+      - "汇总一下私募持仓情况"
+      - "客户账户分析总结"
+
+  - name: query_status
+    display_name: "查询系统状态"
+    description: "查询 Agent 和 Skill 运行状态和统计数据"
+    keywords:
+      - 状态
+      - 运行
+      - 统计
+      - 报表
+      - 成功率
+      - 调用量
+      - Skill
+      - Agent
+    skill_name: status_query
+    priority: 5
+    enabled: true
+    examples:
+      - "今天Agent运行情况怎么样"
+      - "Skill调用统计"
+      - "查看系统报表"
+
+  - name: manage_skill
+    display_name: "管理 Skill"
+    description: "Skill 导入导出和管理操作"
+    keywords:
+      - 导入
+      - 导出
+      - 安装
+      - 卸载
+      - 启用
+      - 禁用
+    skill_name: skill_manager
+    priority: 5
+    enabled: true
+    examples:
+      - "导入一个新的Skill"
+      - "导出报告解析Skill"
+      - "启用总结生成Skill"

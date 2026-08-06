@@ -31,5 +31,11 @@ Thumbs.db
 # Streamlit
 .streamlit/
 
-# Project specific
-/tmp/
+# Data files (generated)
+data/*.db
+logs/
+
+# Tests
+.pytest_cache/
+htmlcov/
+.coverage

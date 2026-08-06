@@ -1,0 +1,19 @@
+# MCP Server Connection Configuration
+# Supports stdio (subprocess) and sse (HTTP) transports
+
+servers:
+  - name: demo_tools
+    description: "Demo MCP Server — 提供文档解析、账户分析、持仓查询"
+    transport: stdio
+    command: python
+    args: ["-m", "mcp_servers.demo_tools"]
+    timeout: 30
+    enabled: true
+
+  # Example: External API via SSE
+  # - name: external_api
+  #   description: "External financial data API"
+  #   transport: sse
+  #   url: "http://localhost:3001/sse"
+  #   timeout: 30
+  #   enabled: false

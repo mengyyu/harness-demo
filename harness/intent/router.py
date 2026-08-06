@@ -179,8 +179,9 @@ class IntentRouter:
             if nkw.lower() in text:
                 score -= 3.0
 
-        # 优先级加成
-        score += intent.priority * 0.1
+        # 优先级加成（仅在有实际匹配时生效）
+        if score > 0:
+            score += intent.priority * 0.1
 
         return max(score, 0.0)
 
