@@ -55,6 +55,14 @@ def init_harness():
         )
     print(f"  ✓ MCP Tools registered: {mcp_registry.get_stats()['total_tools']} tools")
 
+    # Also register with legacy mcp_manager (used by harness/agent/loop.py)
+    from harness.mcp.manager import mcp_manager as legacy_mcp, MCPTool as LegacyTool
+    legacy_mcp.register_server(
+        name="demo_tools",
+        description="Demo MCP Server",
+        tools=[LegacyTool(name=t.name, description=t.description, parameters=t.parameters, handler=t.handler) for t in DEMO_TOOLS],
+    )
+
     # ── Load Skills ──
     from harness.skills.manager import skill_manager
     skill_manager.load_from_directory()
