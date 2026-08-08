@@ -47,7 +47,7 @@ class SummaryGeneratorSkill(BaseSkill):
             # Step 3: 生成总结（Mock LLM 逻辑）
             steps.append({"step": "generate_summary", "status": "running"})
 
-            summary = self._generate_summary(aligned, customer_id)
+            summary = await self._generate_summary(aligned, customer_id)
             steps.append({"step": "generate_summary", "status": "completed"})
 
             return SkillResult(
@@ -89,9 +89,65 @@ class SummaryGeneratorSkill(BaseSkill):
             "concentration": holding_data.get("concentration", {}),
         }
 
-    def _generate_summary(self, data: dict, customer_id: str) -> dict:
-        """生成总结（Mock LLM）"""
+    async def _generate_summary(self, data: dict, customer_id: str) -> dict:
+        """生成总结 — 优先用 LLM，fallback 到规则引擎"""
+        from harness.llm import get_llm
+        import json
+
+        llm = get_llm()
+
         name = data["customer_name"]
+        total_assets = data["total_assets"]
+        total_return = data["total_return"]
+        benchmark_return = data["benchmark_return"]
+        risk_level = data["risk_level"]
+        excess_return = total_return - benchmark_return
+
+        # Build structured data for the prompt
+        data_json = json.dumps({
+            "客户": name,
+            "报告期": data.get("report_date", ""),
+            "风险等级": risk_level,
+            "总资产(万元)": total_assets,
+            "收益率(%)": total_return,
+            "基准收益率(%)": benchmark_return,
+            "超额收益(%)": excess_return,
+            "行业配置": data.get("sector_allocation", {}),
+            "私募产品": [
+                {"名称": p.get("name", ""), "策略": p.get("strategy", ""),
+                 "年初至今收益": p.get("return_ytd", 0), "近一年收益": p.get("return_1y", 0),
+                 "最大回撤": p.get("max_drawdown", 0)}
+                for p in data.get("private_equity_products", [])
+            ],
+            "持仓集中度": data.get("concentration", {}),
+        }, ensure_ascii=False, indent=2)
+
+        if not llm.is_mock():
+            prompt = f"""你是投资顾问助手。根据以下客户数据，生成一份专业的投资组合总结。
+
+{data_json}
+
+请生成包含以下部分的总结：
+1. 账户总览（总资产、收益率、超额收益、风险等级）
+2. 私募持仓分析（产品表现、行业分布、集中度）
+3. 风险提示（识别具体风险）
+4. 综合建议
+
+返回 JSON 格式：
+{{"account_overview": "一句话总览",
+  "holding_analysis": "持仓分析一段话",
+  "private_equity_performance": "私募表现评价",
+  "risk_alerts": ["风险1", "风险2"],
+  "suggestions": ["建议1", "建议2"],
+  "full_text": "完整总结文本（Markdown格式）"}}"""
+
+            try:
+                result = await llm.ainvoke_json(prompt)
+                return result
+            except Exception:
+                pass  # Fall through to hardcoded logic
+
+        # ── Hardcoded fallback ──
         total_assets = data["total_assets"]
         total_return = data["total_return"]
         benchmark_return = data["benchmark_return"]

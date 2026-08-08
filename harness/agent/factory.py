@@ -15,8 +15,6 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from langchain.chat_models import init_chat_model
-
 from config.settings import settings
 
 logger = logging.getLogger(__name__)
@@ -91,6 +89,7 @@ def create_harness_agent(
     model_name = model or settings.AGENT_DEFAULT_MODEL
 
     try:
+        from langchain.chat_models import init_chat_model
         model_instance = init_chat_model(model_name, temperature=settings.LLM_TEMPERATURE)
     except Exception as e:
         logger.warning(

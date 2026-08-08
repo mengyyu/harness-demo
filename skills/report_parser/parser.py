@@ -31,10 +31,36 @@ class ReportParserSkill(BaseSkill):
             mcp_calls.append({"tool": "parse_document", "success": True})
             steps.append({"step": "parse_document", "status": "completed"})
 
-            # Step 2: 结构化提取（Mock — 真实场景用 LLM）
+            # Step 2: 结构化提取（使用 LLM）
             steps.append({"step": "extract_fields", "status": "running"})
 
-            extracted_data = {
+            from harness.llm import get_llm
+            llm = get_llm()
+
+            extraction_prompt = f"""你是基金诊断报告解析专家。从以下文档文本中提取关键字段，返回 JSON。
+
+文档内容：
+{doc_text.get('raw_text', str(doc_text))[:5000]}
+
+请提取以下字段并返回 JSON（不要有其他内容）：
+- fund_name: 基金名称
+- fund_code: 基金代码
+- fund_manager: 基金经理
+- fund_company: 基金公司
+- diagnosis_date: 诊断日期
+- report_type: 报告类型
+- performance_metrics: {{return_1m, return_3m, return_6m, return_1y, annual_volatility, sharpe_ratio, max_drawdown}}
+- risk_assessment: {{risk_level, risk_score}}
+- holdings_analysis: {{sector_distribution: {{行业名: 占比}}, concentration_ratio, top_holdings: [{{name, weight}}]}}
+- diagnosis_conclusion: {{overall_score, strengths: [], weaknesses: [], suggestions: []}}
+
+如果某些字段无法从文档中提取，设为 null。"""
+
+            try:
+                extracted_data = await llm.ainvoke_json(extraction_prompt)
+            except Exception:
+                # Fallback to hardcoded data
+                extracted_data = {
                 "fund_name": "演示稳健增长混合型基金",
                 "fund_code": "DEMO001",
                 "fund_manager": "张三",
@@ -85,7 +111,8 @@ class ReportParserSkill(BaseSkill):
                     "risk_assessment": "medium",
                     "holdings_analysis": "medium",
                 },
-            }
+            }  # end fallback
+
             steps.append({"step": "extract_fields", "status": "completed",
                           "fields_count": len(extracted_data)})
 

@@ -55,12 +55,66 @@ class AgentState(TypedDict):
 # Node 函数
 # ═══════════════════════════════════════════════════
 
+async def _generate_plan(intent: str, user_input: str) -> list:
+    """Generate execution plan using LLM, with hardcoded fallback."""
+    from harness.llm import get_llm
+
+    llm = get_llm()
+
+    if llm.is_mock():
+        # Hardcoded fallback for mock mode
+        plans = {
+            "parse_report": [
+                "检测文档格式并选择合适的解析器",
+                "调用 MCP parse_document 提取文本和表格",
+                "执行 report_parser skill 结构化提取关键字段",
+                "校验提取结果的完整性和合理性",
+            ],
+            "generate_summary": [
+                "调用 MCP get_account_analysis 获取客户账户数据",
+                "调用 MCP get_holding_report 获取私募持仓数据",
+                "对齐两份数据源的时间维度和资产分类标准",
+                "生成包含账户总览、持仓分析、风险提示的综合总结",
+            ],
+            "query_status": [
+                "查询 Agent 运行统计（调用量、成功率、延迟）",
+                "查询 Skill 运行统计（调用排行、错误详情）",
+                "汇总系统运行状态并输出报表",
+            ],
+            "manage_skill": [
+                "解析 Skill 管理指令的具体操作",
+                "执行对应的 Skill 操作（导入/导出/启用/禁用）",
+            ],
+        }
+        return plans.get(intent, ["分析用户需求", "执行对应操作", "返回结果"])
+
+    # Real LLM plan generation
+    prompt = f"""你是任务规划器。根据用户意图和输入，将任务分解为 3-5 个具体步骤。
+
+意图：{intent}
+用户输入：{user_input}
+
+返回 JSON 数组格式（不要有其他内容）：
+["步骤1", "步骤2", "步骤3"]"""
+
+    try:
+        plan = await llm.ainvoke_json(prompt)
+        if isinstance(plan, list) and len(plan) > 0:
+            return plan
+    except Exception:
+        pass
+
+    # Fallback
+    return ["执行 {intent} 操作"]
+
+
 async def intent_route_node(state: AgentState) -> AgentState:
     """节点 1: 意图路由"""
     execution_tracker.add_step(state["session_id"], "intent_route",
                                input_data={"user_input": state["user_input"]})
 
-    intent, confidence, skill = intent_router.route_single(state["user_input"])
+    # Try keyword routing first, fall back to LLM if confidence < 0.3
+    intent, confidence, skill = await intent_router.route_single_async(state["user_input"])
     all_intents, all_confidences, all_skills = intent_router.route(state["user_input"])
 
     state["intent"] = intent
@@ -113,38 +167,8 @@ async def plan_node(state: AgentState) -> AgentState:
 
     intent = state["intent"]
 
-    # 根据意图制定计划（Mock LLM 逻辑）
-    if intent == "parse_report":
-        state["plan_steps"] = [
-            "检测文档格式",
-            "调用 MCP parse_document 提取文本",
-            "执行 report_parser skill 结构化提取",
-            "校验提取结果",
-        ]
-    elif intent == "generate_summary":
-        state["plan_steps"] = [
-            "调用 MCP get_account_analysis 获取账户数据",
-            "调用 MCP get_holding_report 获取持仓数据",
-            "数据对齐与融合",
-            "生成综合总结",
-        ]
-    elif intent == "query_status":
-        state["plan_steps"] = [
-            "查询 Agent 运行统计",
-            "查询 Skill 运行统计",
-            "汇总输出",
-        ]
-    elif intent == "manage_skill":
-        state["plan_steps"] = [
-            "解析管理指令",
-            "执行 Skill 操作",
-        ]
-    else:
-        # unknown — 交给未知意图处理
-        state["plan_steps"] = [
-            "澄清用户意图",
-            "建议可用功能",
-        ]
+    # Use LLM to generate plan steps (falls back to hardcoded if mock)
+    state["plan_steps"] = await _generate_plan(intent, state["user_input"])
 
     state["current_step"] = 0
     state["loop_count"] = 0

@@ -151,13 +151,62 @@ class IntentRouter:
         return intents, confidences, skills
 
     def route_single(self, user_input: str) -> Tuple[str, float, str]:
-        """单意图路由（取最高分）"""
+        """单意图路由（取最高分），低置信时 fallback 到 LLM"""
+        return self._route_single_sync(user_input)
+
+    async def route_single_async(self, user_input: str) -> Tuple[str, float, str]:
+        """Async version with LLM fallback."""
+        intents, confidences, skills = self.route(user_input)
+        if not intents or intents[0] == "unknown" or confidences[0] < 0.3:
+            # Keyword matching failed or low confidence → try LLM
+            return await self._llm_route(user_input)
+        return intents[0], confidences[0], skills[0]
+
+    def _route_single_sync(self, user_input: str) -> Tuple[str, float, str]:
+        """同步版本（不触发 LLM）"""
         intents, confidences, skills = self.route(user_input)
         if not intents or intents[0] == "unknown":
             return ("unknown", 0.0, "")
         return intents[0], confidences[0], skills[0]
 
     # ── 评分 ────────────────────────────────────────
+
+    async def _llm_route(self, user_input: str) -> Tuple[str, float, str]:
+        """LLM-based intent classification fallback.
+
+        Used when keyword matching produces low confidence results.
+        """
+        from harness.llm import get_llm
+
+        llm = get_llm()
+
+        # Build intent catalog
+        intents_desc = "\n".join(
+            f"- {i.name}: {i.description} (e.g., {', '.join(i.examples[:2])})"
+            for i in self.intents.values() if i.is_active
+        )
+
+        prompt = f"""你是意图分类器。根据用户输入，判断意图并返回 JSON。
+
+可用意图：
+{intents_desc}
+
+用户输入：{user_input}
+
+返回 JSON 格式（不要有其他内容）：
+{{"intent": "意图名称", "confidence": 0.0-1.0}}
+
+如果无法匹配任何意图，返回 intent="unknown"。"""
+
+        try:
+            result = await llm.ainvoke_json(prompt)
+            intent_name = result.get("intent", "unknown")
+            confidence = float(result.get("confidence", 0.5))
+            intent = self.intents.get(intent_name)
+            skill = intent.bound_skill if intent else ""
+            return (intent_name, min(confidence, 1.0), skill)
+        except Exception:
+            return ("unknown", 0.0, "")
 
     def _calculate_score(self, user_input: str, intent: IntentRule) -> float:
         """计算输入与意图的匹配得分"""
