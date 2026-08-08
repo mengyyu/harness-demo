@@ -171,6 +171,8 @@ class LLMService:
         try:
             if provider == "anthropic":
                 self._llm = self._init_anthropic(api_key)
+            elif provider == "deepseek":
+                self._llm = self._init_deepseek(api_key)
             elif provider in ("openai", "openai_compatible"):
                 self._llm = self._init_openai(api_key)
             else:
@@ -197,6 +199,21 @@ class LLMService:
             temperature=settings.LLM_TEMPERATURE,
             max_tokens=settings.LLM_MAX_TOKENS,
             base_url=settings.LLM_BASE_URL,
+        )
+
+    def _init_deepseek(self, api_key: str):
+        """Initialize DeepSeek via LangChain (OpenAI-compatible)."""
+        from langchain_openai import ChatOpenAI
+
+        base_url = settings.LLM_BASE_URL or "https://api.deepseek.com"
+        model = settings.LLM_MODEL if settings.LLM_MODEL != "claude-sonnet-4-5-20250929" else "deepseek-chat"
+
+        return ChatOpenAI(
+            model=model,
+            api_key=api_key,
+            temperature=settings.LLM_TEMPERATURE,
+            max_tokens=settings.LLM_MAX_TOKENS,
+            base_url=base_url,
         )
 
     def _init_openai(self, api_key: str):
