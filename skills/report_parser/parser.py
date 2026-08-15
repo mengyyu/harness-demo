@@ -131,12 +131,15 @@ class ReportParserSkill(BaseSkill):
                     mcp_calls=mcp_calls,
                 )
 
+            conclusion = extracted_data.get("diagnosis_conclusion") or {}
+            overall = conclusion.get("overall_score", "N/A")
+
             return SkillResult(
                 success=True,
                 skill_name=self.name,
                 data=extracted_data,
-                summary=f"成功解析基金诊断报告 [{extracted_data['fund_name']}]，"
-                        f"提取 {len(extracted_data)} 个字段组，综合评分 {extracted_data['diagnosis_conclusion']['overall_score']} 分",
+                summary=f"成功解析基金诊断报告 [{extracted_data.get('fund_name', '未知')}]，"
+                        f"提取 {len(extracted_data)} 个字段组，综合评分 {overall} 分",
                 steps=steps,
                 mcp_calls=mcp_calls,
             )
@@ -151,7 +154,7 @@ class ReportParserSkill(BaseSkill):
             )
 
     def _validate(self, data: dict) -> dict:
-        """数据校验"""
+        """数据校验（null-safe，LLM 可能返回 null 值）"""
         errors = []
 
         # 必填字段检查
@@ -160,16 +163,21 @@ class ReportParserSkill(BaseSkill):
             if field not in data or not data[field]:
                 errors.append(f"缺少必填字段: {field}")
 
-        # 合理性检查
-        perf = data.get("performance_metrics", {})
-        if perf.get("return_1y", 0) > 500:
-            errors.append("年化收益率异常 (>500%)")
-        if perf.get("sharpe_ratio", 0) > 10:
-            errors.append("夏普比率异常 (>10)")
+        # 合理性检查（跳过 None 值，LLM 无法提取时返回 null）
+        perf = data.get("performance_metrics") or {}
+        if isinstance(perf, dict):
+            return_1y = perf.get("return_1y")
+            if return_1y is not None and return_1y > 500:
+                errors.append("年化收益率异常 (>500%)")
+            sharpe = perf.get("sharpe_ratio")
+            if sharpe is not None and sharpe > 10:
+                errors.append("夏普比率异常 (>10)")
 
-        risk = data.get("risk_assessment", {})
-        if risk.get("risk_score", 0) > 100:
-            errors.append("风险评分异常 (>100)")
+        risk = data.get("risk_assessment") or {}
+        if isinstance(risk, dict):
+            risk_score = risk.get("risk_score")
+            if risk_score is not None and risk_score > 100:
+                errors.append("风险评分异常 (>100)")
 
         return {"passed": len(errors) == 0, "errors": errors}
 

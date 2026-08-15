@@ -223,6 +223,7 @@ async def execute_node(state: AgentState) -> AgentState:
                         "data": result.data,
                         "summary": result.summary,
                         "steps": result.steps,
+                        "error": result.error,
                     })
 
             elif intent == "generate_summary" and skill_name == "summary_generator":
@@ -271,6 +272,7 @@ async def execute_node(state: AgentState) -> AgentState:
                         "data": result.data,
                         "summary": result.summary,
                         "steps": result.steps,
+                        "error": result.error,
                     })
 
             elif intent == "query_status":
@@ -386,7 +388,11 @@ def output_node(state: AgentState) -> AgentState:
             import json
             parts.append(json.dumps(result["data"], ensure_ascii=False, indent=2))
 
-    if not parts:
+    # 失败的 Skill 结果 → 输出错误信息
+    failed_results = [r for r in state["skill_results"] if not r.get("success")]
+    if failed_results and not parts:
+        state["final_output"] = f"执行失败: {failed_results[-1].get('error', '未知错误')}"
+    elif not parts:
         # 没有执行任何 Skill
         state["final_output"] = f"没有匹配到可执行的操作。意图: {state['intent']}"
     else:
