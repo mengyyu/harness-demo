@@ -19,16 +19,19 @@ class ReportParserSkill(BaseSkill):
         mcp_calls = []
 
         try:
-            # Step 1: 调用 MCP 解析文档
+            # Step 1: 调用 MCP 解析文档（优先使用上传的文件内容）
             steps.append({"step": "parse_document", "status": "running"})
             if self.mcp_manager:
+                attachment = context.params.get("attachment") or {}
                 doc_text = await self.call_mcp_tool(
                     "demo_tools", "parse_document",
-                    file_path=context.params.get("file_path", "demo_report.pdf"),
+                    file_path=context.params.get("file_path", ""),
+                    file_name=attachment.get("file_name", ""),
+                    file_content=attachment.get("content"),
                 )
             else:
                 doc_text = "模拟文档解析结果: 这是一份基金诊断报告的演示文本..."
-            mcp_calls.append({"tool": "parse_document", "success": True})
+            mcp_calls.append({"tool": "parse_document", "success": doc_text.get("success", True)})
             steps.append({"step": "parse_document", "status": "completed"})
 
             # Step 2: 结构化提取（使用 LLM）

@@ -61,6 +61,18 @@ def run_agent(user_input: str) -> dict:
         loop.close()
 
 
+def run_agent_with_attachment(user_input: str, attachment: dict) -> dict:
+    """带附件运行 Agent（上传文件解析）"""
+    loop = asyncio.new_event_loop()
+    try:
+        result = loop.run_until_complete(
+            get_agent().run(user_input, attachment=attachment)
+        )
+        return result
+    finally:
+        loop.close()
+
+
 # ══════════════════════════════════════════════════════════
 # 侧边栏
 # ══════════════════════════════════════════════════════════
@@ -185,8 +197,16 @@ elif page == "📄 报告解析":
             st.success(f"✅ 已上传: {uploaded_file.name} ({uploaded_file.size // 1024} KB)")
 
             if st.button("🚀 开始解析", type="primary", use_container_width=True):
-                with st.spinner("解析中..."):
-                    result = run_agent(f"帮我解析这份基金诊断报告: {uploaded_file.name}")
+                with st.spinner("解析中...（读取文件 → 提取文本 → AI 结构化提取）"):
+                    # 读取上传文件内容，传给 Agent
+                    attachment = {
+                        "file_name": uploaded_file.name,
+                        "content": uploaded_file.getvalue(),
+                    }
+                    result = run_agent_with_attachment(
+                        f"帮我解析这份基金诊断报告: {uploaded_file.name}",
+                        attachment,
+                    )
                     st.session_state.parse_result = result
                     st.session_state.parse_file = uploaded_file.name
 

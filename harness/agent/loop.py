@@ -24,6 +24,7 @@ class AgentState(TypedDict):
     session_id: str
     user_id: str
     user_input: str
+    attachment: Dict      # {"file_name": str, "content": bytes} 上传的文件
 
     # 意图路由结果
     intent: str
@@ -213,7 +214,10 @@ async def execute_node(state: AgentState) -> AgentState:
                         session_id=state["session_id"],
                         user_id=state["user_id"],
                         intent=intent,
-                        params={"file_path": state["user_input"]},
+                        params={
+                            "file_path": state["user_input"],
+                            "attachment": state.get("attachment") or {},
+                        },
                         memories=state["memory_context"].get("entity_context", []),
                     )
                     result = await skill.execute(context)
@@ -497,12 +501,14 @@ class HarnessAgent:
         self.graph = build_agent_graph()
         self._session_counter = 0
 
-    async def run(self, user_input: str, user_id: str = "default") -> Dict[str, Any]:
+    async def run(self, user_input: str, user_id: str = "default",
+                  attachment: Dict = None) -> Dict[str, Any]:
         """运行 Agent
 
         Args:
             user_input: 用户输入
             user_id: 用户 ID
+            attachment: 上传的文件 {"file_name": str, "content": bytes}
 
         Returns:
             包含完整执行结果的字典
@@ -518,6 +524,7 @@ class HarnessAgent:
             "session_id": session_id,
             "user_id": user_id,
             "user_input": user_input,
+            "attachment": attachment or {},
             "intent": "",
             "confidence": 0.0,
             "matched_skill": "",

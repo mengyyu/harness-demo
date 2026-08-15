@@ -1,61 +1,133 @@
 """Demo MCP Server — 提供演示工具"""
 
+import io
 from harness.mcp.manager import MCPTool
 
 
 # ═══════════════════════════════════════════════════
-# Tool 处理函数
+# 真实文档解析
 # ═══════════════════════════════════════════════════
 
-def parse_document_handler(file_path: str = "", **kwargs) -> dict:
-    """模拟文档解析"""
+def _extract_pdf(file_bytes: bytes) -> str:
+    """从 PDF 提取文本"""
+    from pypdf import PdfReader
+    reader = PdfReader(io.BytesIO(file_bytes))
+    pages = []
+    for page in reader.pages:
+        text = page.extract_text() or ""
+        pages.append(text)
+    return "\n".join(pages)
+
+
+def _extract_docx(file_bytes: bytes) -> str:
+    """从 Word 文档提取文本"""
+    from docx import Document
+    doc = Document(io.BytesIO(file_bytes))
+    parts = [p.text for p in doc.paragraphs if p.text.strip()]
+    for table in doc.tables:
+        for row in table.rows:
+            cells = [cell.text.strip() for cell in row.cells]
+            parts.append(" | ".join(cells))
+    return "\n".join(parts)
+
+
+def _extract_txt(file_bytes: bytes) -> str:
+    """从纯文本提取"""
+    for encoding in ("utf-8", "gbk", "gb18030", "latin-1"):
+        try:
+            return file_bytes.decode(encoding)
+        except (UnicodeDecodeError, LookupError):
+            continue
+    return file_bytes.decode("utf-8", errors="replace")
+
+
+def parse_document_handler(file_path: str = "", file_name: str = "",
+                           file_content: bytes = None, **kwargs) -> dict:
+    """真实文档解析 — 支持 PDF / Word / 纯文本
+
+    Args:
+        file_path: 服务器本地文件路径（可选）
+        file_name: 上传文件的原始文件名（用于判断格式）
+        file_content: 上传文件的二进制内容（bytes）
+    """
+    # ── 优先解析上传的文件内容 ──
+    if file_content:
+        name = (file_name or file_path or "")
+        ext = name.lower().rsplit(".", 1)[-1] if "." in name else ""
+
+        try:
+            if ext == "pdf":
+                raw_text = _extract_pdf(file_content)
+                fmt = "pdf"
+            elif ext in ("docx", "doc"):
+                raw_text = _extract_docx(file_content)
+                fmt = "docx"
+            elif ext in ("txt", "md"):
+                raw_text = _extract_txt(file_content)
+                fmt = "txt"
+            else:
+                raw_text = _extract_txt(file_content)
+                fmt = ext or "unknown"
+
+            if raw_text.strip():
+                return {
+                    "success": True,
+                    "file_name": file_name,
+                    "format": fmt,
+                    "raw_text": raw_text[:20000],
+                    "source": "uploaded_file",
+                }
+        except Exception as e:
+            return {
+                "success": False,
+                "file_name": file_name,
+                "error": f"文档解析失败: {e}",
+            }
+
+    # ── 尝试读取服务器本地文件 ──
+    if file_path and file_path != "demo_report.pdf":
+        import os
+        if os.path.exists(file_path):
+            with open(file_path, "rb") as f:
+                content = f.read()
+            return parse_document_handler(
+                file_name=os.path.basename(file_path), file_content=content,
+            )
+
+    # ── 兜底：无文件时返回演示文本 ──
     return {
         "success": True,
-        "file_path": file_path or "demo_report.pdf",
-        "format": "pdf",
-        "pages": 12,
-        "raw_text": """
-        基金诊断报告
-        基金名称: 演示稳健增长混合型基金
-        基金代码: DEMO001
-        基金经理: 张三
-        诊断日期: 2024-06-30
+        "file_name": file_name or file_path or "demo_report.pdf",
+        "format": "demo",
+        "raw_text": """基金诊断报告
+基金名称: 演示稳健增长混合型基金
+基金代码: DEMO001
+基金经理: 张三
+诊断日期: 2024-06-30
 
-        业绩表现:
-        - 近1月收益率: 2.35%
-        - 近3月收益率: 5.82%
-        - 近6月收益率: 8.91%
-        - 近1年收益率: 15.67%
-        - 年化波动率: 18.5%
-        - 夏普比率: 1.23
+业绩表现:
+- 近1月收益率: 2.35%
+- 近3月收益率: 5.82%
+- 近1年收益率: 15.67%
+- 年化波动率: 18.5%
+- 夏普比率: 1.23
 
-        风险指标:
-        - 风险等级: R3
-        - 最大回撤: -15.8%
-        - VaR(95%): -2.1%
+风险指标:
+- 风险等级: R3
+- 最大回撤: -15.8%
 
-        持仓分析:
-        - 行业分布: 消费28.5%, 科技22.3%, 金融18.7%
-        - 前三大重仓: 贵州茅台(8.5%), 宁德时代(6.2%), 招商银行(5.1%)
-        - 仓位集中度: 0.35
+持仓分析:
+- 行业分布: 消费28.5%, 科技22.3%, 金融18.7%
+- 前三大重仓: 贵州茅台(8.5%), 宁德时代(6.2%), 招商银行(5.1%)
+- 仓位集中度: 0.35
 
-        综合评分: 78分
-        优势: 行业配置均衡, 风控能力较强
-        劣势: 近期换手率偏高
-        """,
-        "tables": [
-            {
-                "title": "收益率明细",
-                "headers": ["指标", "数值"],
-                "rows": [
-                    ["近1月", "2.35%"],
-                    ["近3月", "5.82%"],
-                    ["近1年", "15.67%"],
-                    ["夏普比率", "1.23"],
-                ],
-            },
-        ],
+综合评分: 78分
+""",
+        "source": "demo",
     }
+
+
+
 
 
 def get_account_analysis_handler(customer_id: str = "", **kwargs) -> dict:
